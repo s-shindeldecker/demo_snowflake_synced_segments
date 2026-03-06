@@ -11,8 +11,7 @@ Run these scripts in order from a Snowflake worksheet or SnowSQL session. Each s
 | `03_tables.sql` | Creates three tables: `SEGMENTS` (segment definitions), `SEGMENT_MEMBERS` (membership), `SYNC_LOG` (audit trail). |
 | `04_sync_procedure.sql` | Creates the `SYNC_SEGMENT_TO_LD` Python stored procedure that detects changes and sends them to the middleware. |
 | `05_task.sql` | Creates the `SYNC_ALL_SEGMENTS` helper procedure, a Stream on `SEGMENT_MEMBERS` for change detection, and a scheduled Task that syncs automatically when data changes. |
-| `06_seed_data.sql` | Inserts sample data: 10 premium users and 5 beta testers. Safe to re-run (clears previous demo data first). |
-| `07_demo_walkthrough.sql` | Interactive walkthrough covering the full CRUD lifecycle: add, remove, re-add, no-op, multi-segment, and bulk sync. |
+| `06_seed_data.sql` | Example seed data: 10 premium users and 5 beta testers. Use as a reference for populating your own segments. Safe to re-run (clears previous data first). |
 
 ## Before You Run
 
@@ -23,7 +22,6 @@ Update these placeholders to match your environment:
 | `01_setup.sql` | `USE WAREHOUSE ...` -- your warehouse name |
 | `02_network_access.sql` | `VALUE_LIST` -- your middleware hostname (e.g. `your-app.vercel.app:443`) |
 | `05_task.sql` | Warehouse name in `CREATE TASK` and middleware URL in `CALL SYNC_ALL_SEGMENTS(...)` |
-| `07_demo_walkthrough.sql` | `USE WAREHOUSE ...` and `SET SYNC_URL = ...` |
 
 ## Quick Reference
 

@@ -4,31 +4,27 @@ Sync segment membership from Snowflake tables to LaunchDarkly segments in near r
 
 ## Architecture
 
-```
-┌──────────────────────────┐
-│       Snowflake          │
-│                          │
-│  SEGMENT_MEMBERS table   │
-│         │                │
-│  Stream (CDC) ───► Task  │
-│                    │     │
-│  Stored Procedure ◄┘     │
-│         │                │
-└─────────┼────────────────┘
-          │ HTTPS POST
-          ▼
-┌──────────────────────────┐
-│  Middleware (Vercel)      │
-│  FastAPI application      │
-│         │                │
-└─────────┼────────────────┘
-          │ PATCH (semantic patch)
-          ▼
-┌──────────────────────────┐
-│  LaunchDarkly API         │
-│  Segment membership       │
-│  updated in real-time     │
-└──────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph snowflake [Snowflake]
+        Table["SEGMENT_MEMBERS table"]
+        Stream["Stream (CDC)"]
+        Task["Scheduled Task"]
+        Proc["Python Stored Procedure"]
+        Table --> Stream
+        Stream --> Task
+        Task --> Proc
+    end
+    subgraph middleware [Middleware on Vercel]
+        API["FastAPI /api/snowflake-sync"]
+    end
+    subgraph ld [LaunchDarkly]
+        Seg["Segment membership"]
+        Flag["Feature flag targeting"]
+        Seg --> Flag
+    end
+    Proc -->|"HTTPS POST"| API
+    API -->|"PATCH semantic patch"| Seg
 ```
 
 **How it works:**
@@ -89,33 +85,24 @@ snowflake/02_network_access.sql   -- Allow outbound HTTPS to middleware
 snowflake/03_tables.sql           -- SEGMENTS, SEGMENT_MEMBERS, SYNC_LOG
 snowflake/04_sync_procedure.sql   -- Python stored procedure (sync engine)
 snowflake/05_task.sql             -- Stream + scheduled Task (automation)
-snowflake/06_seed_data.sql        -- Sample data for the demo
-snowflake/07_demo_walkthrough.sql -- Step-by-step CRUD demo
+snowflake/06_seed_data.sql        -- Example seed data (reference only)
 ```
 
 **Before running, update these values:**
 - `01_setup.sql` -- warehouse name (`USE WAREHOUSE ...`)
 - `02_network_access.sql` -- middleware host in `VALUE_LIST`
 - `05_task.sql` -- warehouse name and middleware URL in `CALL SYNC_ALL_SEGMENTS(...)`
-- `07_demo_walkthrough.sql` -- warehouse name and `SET SYNC_URL = ...`
 
-### 4. Run the demo
+### 4. Test it
 
-Open `snowflake/07_demo_walkthrough.sql` and execute each step one at a time. The walkthrough covers:
+Once the scripts are run and seed data is loaded, trigger a manual sync:
 
-| Step | What it does |
-|------|-------------|
-| 1 | Review starting data (10 premium users, 5 beta testers) |
-| 2 | Initial sync -- push all members to LaunchDarkly |
-| 3 | Add 3 new members (incremental sync) |
-| 4 | Remove 2 members (soft delete via `IS_ACTIVE = FALSE`) |
-| 5 | Re-add a previously removed member |
-| 6 | No-op sync (nothing changed, no API call made) |
-| 7 | Sync a second, independent segment |
-| 8 | Bulk sync all segments |
-| 9-10 | Review audit trail and final state |
+```sql
+SET SYNC_URL = 'https://your-middleware.vercel.app';
+CALL SYNC_SEGMENT_TO_LD('premium-users', $SYNC_URL);
+```
 
-After each sync step, check LaunchDarkly to see the segment membership update.
+Then check the `premium-users` segment in LaunchDarkly to see the 10 members appear.
 
 ## How Segment Membership Works
 
@@ -226,8 +213,7 @@ Returns `{"status": "healthy"}`.
     ├── 03_tables.sql        # Core tables
     ├── 04_sync_procedure.sql # Sync stored procedure
     ├── 05_task.sql          # Stream + scheduled Task
-    ├── 06_seed_data.sql     # Sample demo data
-    └── 07_demo_walkthrough.sql # Interactive walkthrough
+    └── 06_seed_data.sql     # Example seed data
 ```
 
 ## Local Development
